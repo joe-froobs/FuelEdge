@@ -70,17 +70,24 @@ export function PriceTrendChart() {
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
             <div className="flex rounded-lg border border-slate-200 overflow-hidden">
-              {[7, 14, 30].map((d) => (
+              {[
+                { label: "7D", value: 7 },
+                { label: "30D", value: 30 },
+                { label: "90D", value: 90 },
+                { label: "1Y", value: 365 },
+                { label: "5Y", value: 1825 },
+                { label: "10Y", value: 3650 },
+              ].map((opt) => (
                 <button
-                  key={d}
-                  onClick={() => setDays(d)}
-                  className={`px-3 py-2 text-xs font-medium transition-colors ${
-                    days === d
+                  key={opt.value}
+                  onClick={() => setDays(opt.value)}
+                  className={`px-2.5 py-2 text-xs font-medium transition-colors ${
+                    days === opt.value
                       ? "bg-teal-700 text-white"
                       : "bg-slate-50 text-slate-600 hover:bg-slate-100"
                   }`}
                 >
-                  {d}D
+                  {opt.label}
                 </button>
               ))}
             </div>
@@ -97,8 +104,19 @@ export function PriceTrendChart() {
               tick={{ fontSize: 11, fill: "#94a3b8" }}
               tickFormatter={(val) => {
                 const d = new Date(val);
+                if (days > 1825) {
+                  // 5Y+: show month/year
+                  return d.toLocaleDateString("en-AU", { month: "short", year: "2-digit" });
+                } else if (days > 365) {
+                  // 1-5Y: show month/year
+                  return d.toLocaleDateString("en-AU", { month: "short", year: "2-digit" });
+                } else if (days > 60) {
+                  // 60D-1Y: show day/month
+                  return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+                }
                 return `${d.getDate()}/${d.getMonth() + 1}`;
               }}
+              interval="preserveStartEnd"
             />
             <YAxis
               tick={{ fontSize: 11, fill: "#94a3b8" }}
@@ -121,10 +139,18 @@ export function PriceTrendChart() {
               formatter={(value) => [`${Number(value).toFixed(1)} cpl`]}
               labelFormatter={(label) => {
                 const d = new Date(label);
+                if (days > 365) {
+                  return d.toLocaleDateString("en-AU", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  });
+                }
                 return d.toLocaleDateString("en-AU", {
                   weekday: "short",
                   day: "numeric",
                   month: "short",
+                  year: "numeric",
                 });
               }}
             />

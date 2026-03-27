@@ -180,6 +180,29 @@ export function getAlerts(): PriceAlert[] {
   ];
 }
 
+// Historical base prices to simulate realistic long-term trends (cpl)
+// Roughly mirrors actual Australian fuel price history
+function getHistoricalBase(fuelType: FuelType, yearsAgo: number): number {
+  // Approximate historical ULP prices (cpl) in Australia:
+  // 2016: ~110, 2017: ~120, 2018: ~135, 2019: ~130, 2020: ~100 (COVID),
+  // 2021: ~140, 2022: ~180 (Ukraine), 2023: ~170, 2024: ~165, 2025: ~155, 2026: ~155
+  const ulpHistory = [155, 155, 165, 170, 180, 140, 100, 130, 135, 120, 110];
+  const dieselPremium = 13;
+  const pulp95Premium = 12;
+  const pulp98Premium = 23;
+
+  const yearIdx = Math.min(Math.floor(yearsAgo), ulpHistory.length - 1);
+  const baseUlp = ulpHistory[yearIdx];
+
+  switch (fuelType) {
+    case "ULP": return baseUlp;
+    case "E10": return baseUlp - 3;
+    case "Diesel": return baseUlp + dieselPremium;
+    case "PULP 95": return baseUlp + pulp95Premium;
+    case "PULP 98": return baseUlp + pulp98Premium;
+  }
+}
+
 export function getPriceTrend(
   terminal: Terminal,
   fuelType: FuelType,
@@ -189,14 +212,22 @@ export function getPriceTrend(
   const today = new Date();
   const ti = terminals.indexOf(terminal);
 
-  for (let d = days - 1; d >= 0; d--) {
+  // For long ranges, sample weekly (>365 days) or monthly (>1825 days) to keep chart performant
+  let step = 1;
+  if (days > 1825) step = 30; // 5+ years: monthly points
+  else if (days > 365) step = 7; // 1-5 years: weekly points
+
+  for (let d = days - 1; d >= 0; d -= step) {
     const date = new Date(today);
     date.setDate(date.getDate() - d);
     const dateStr = date.toISOString().split("T")[0];
 
+    const yearsAgo = d / 365;
+    const historicalBase = getHistoricalBase(fuelType, yearsAgo);
+
     const point: { date: string; [supplier: string]: number | string } = { date: dateStr };
     for (let si = 0; si < suppliers.length; si++) {
-      point[suppliers[si]] = generatePrice(basePrices[fuelType], si, ti, d);
+      point[suppliers[si]] = generatePrice(historicalBase, si, ti, d);
     }
     trend.push(point);
   }
