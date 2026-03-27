@@ -188,9 +188,15 @@ function parseExcel(buffer: ArrayBuffer): AipTgpRecord[] {
 }
 
 function excelDateToString(serial: number): string | null {
-  // Excel date serial: days since 1900-01-01 (with the 1900 leap year bug)
-  const parsed = XLSX.SSF.parse_date_code(serial);
-  if (!parsed || !parsed.y) return null;
-  return `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
+  // Excel date serial: days since 1899-12-30 (accounting for the 1900 leap year bug)
+  // Serial 1 = 1900-01-01, but Excel wrongly treats 1900 as a leap year
+  if (serial < 1) return null;
+  const epoch = new Date(1899, 11, 30); // Dec 30, 1899
+  const date = new Date(epoch.getTime() + serial * 86400000);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  if (y < 2000 || y > 2030) return null; // sanity check
+  return `${y}-${m}-${d}`;
 }
 

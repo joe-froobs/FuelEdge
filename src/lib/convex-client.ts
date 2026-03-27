@@ -1,0 +1,16 @@
+/**
+ * Server-side Convex client for API routes and cron jobs.
+ * Uses the ConvexHttpClient (not the React client).
+ */
+import { ConvexHttpClient } from "convex/browser";
+
+let client: ConvexHttpClient | null = null;
+
+export function getConvexClient(): ConvexHttpClient {
+  if (!client) {
+    const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (!url) throw new Error("NEXT_PUBLIC_CONVEX_URL not set");
+    client = new ConvexHttpClient(url);
+  }
+  return client;
+}
