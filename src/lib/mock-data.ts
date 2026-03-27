@@ -212,10 +212,10 @@ export function getPriceTrend(
   const today = new Date();
   const ti = terminals.indexOf(terminal);
 
-  // For long ranges, sample weekly (>365 days) or monthly (>1825 days) to keep chart performant
+  // Sample to keep chart clean: daily <=30D, weekly 90D-1Y, monthly 5Y+
   let step = 1;
-  if (days > 1825) step = 30; // 5+ years: monthly points
-  else if (days > 365) step = 7; // 1-5 years: weekly points
+  if (days > 1825) step = 30;      // 5+ years: monthly
+  else if (days > 60) step = 7;    // 90D-5Y: weekly
 
   for (let d = days - 1; d >= 0; d -= step) {
     const date = new Date(today);

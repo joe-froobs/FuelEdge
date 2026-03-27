@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   LineChart,
   Line,
@@ -9,11 +9,12 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import { ChevronDown } from "lucide-react";
 import { Terminal, FuelType } from "@/lib/types";
 import { getPriceTrend } from "@/lib/mock-data";
+
+const SUPPLIERS = ["Ampol", "BP", "Viva Energy", "ExxonMobil"] as const;
 
 const SUPPLIER_COLORS: Record<string, string> = {
   Ampol: "#0f766e",
@@ -26,6 +27,7 @@ export function PriceTrendChart() {
   const [terminal, setTerminal] = useState<Terminal>("Sydney");
   const [fuelType, setFuelType] = useState<FuelType>("ULP");
   const [days, setDays] = useState(30);
+  const [hiddenSuppliers, setHiddenSuppliers] = useState<Set<string>>(new Set());
 
   const data = getPriceTrend(terminal, fuelType, days);
 
@@ -33,6 +35,21 @@ export function PriceTrendChart() {
     "Sydney", "Melbourne", "Brisbane", "Adelaide", "Perth", "Darwin", "Hobart",
   ];
   const fuelTypes: FuelType[] = ["ULP", "Diesel", "PULP 95", "PULP 98"];
+
+  const toggleSupplier = useCallback((supplier: string) => {
+    setHiddenSuppliers((prev) => {
+      const next = new Set(prev);
+      if (next.has(supplier)) {
+        next.delete(supplier);
+      } else {
+        // Don't allow hiding all suppliers
+        if (next.size < SUPPLIERS.length - 1) {
+          next.add(supplier);
+        }
+      }
+      return next;
+    });
+  }, []);
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -95,6 +112,32 @@ export function PriceTrendChart() {
         </div>
       </div>
 
+      {/* Interactive supplier toggles */}
+      <div className="px-5 pt-4 flex items-center gap-1 flex-wrap">
+        <span className="text-xs text-slate-400 mr-1">Show:</span>
+        {SUPPLIERS.map((supplier) => {
+          const isHidden = hiddenSuppliers.has(supplier);
+          const color = SUPPLIER_COLORS[supplier];
+          return (
+            <button
+              key={supplier}
+              onClick={() => toggleSupplier(supplier)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                isHidden
+                  ? "bg-slate-100 text-slate-400 line-through"
+                  : "text-white"
+              }`}
+              style={!isHidden ? { backgroundColor: color } : undefined}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${isHidden ? "bg-slate-300" : "bg-white/50"}`}
+              />
+              {supplier}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="p-5">
         <ResponsiveContainer width="100%" height={350}>
           <LineChart data={data}>
@@ -105,13 +148,10 @@ export function PriceTrendChart() {
               tickFormatter={(val) => {
                 const d = new Date(val);
                 if (days > 1825) {
-                  // 5Y+: show month/year
                   return d.toLocaleDateString("en-AU", { month: "short", year: "2-digit" });
                 } else if (days > 365) {
-                  // 1-5Y: show month/year
                   return d.toLocaleDateString("en-AU", { month: "short", year: "2-digit" });
                 } else if (days > 60) {
-                  // 60D-1Y: show day/month
                   return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
                 }
                 return `${d.getDate()}/${d.getMonth() + 1}`;
@@ -136,7 +176,10 @@ export function PriceTrendChart() {
                 boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                 fontSize: "12px",
               }}
-              formatter={(value) => [`${Number(value).toFixed(1)} cpl`]}
+              formatter={(value, name) => {
+                if (hiddenSuppliers.has(name as string)) return [null, null];
+                return [`${Number(value).toFixed(1)} cpl`, name];
+              }}
               labelFormatter={(label) => {
                 const d = new Date(label);
                 if (days > 365) {
@@ -154,18 +197,16 @@ export function PriceTrendChart() {
                 });
               }}
             />
-            <Legend
-              wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }}
-            />
-            {Object.entries(SUPPLIER_COLORS).map(([supplier, color]) => (
+            {SUPPLIERS.map((supplier) => (
               <Line
                 key={supplier}
                 type="monotone"
                 dataKey={supplier}
-                stroke={color}
-                strokeWidth={2}
+                stroke={SUPPLIER_COLORS[supplier]}
+                strokeWidth={hiddenSuppliers.has(supplier) ? 0 : 2}
                 dot={false}
-                activeDot={{ r: 4 }}
+                activeDot={hiddenSuppliers.has(supplier) ? false : { r: 4 }}
+                hide={hiddenSuppliers.has(supplier)}
               />
             ))}
           </LineChart>
